@@ -468,6 +468,7 @@ int main(int argc, char *argv[])
 
     vTaskSuspend(Exercise2Task);
 
+    vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
