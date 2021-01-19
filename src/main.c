@@ -22,12 +22,32 @@
 
 #include "AsyncIO.h"
 
+// =============================================================================
+// Tasks
+// =============================================================================
+static TaskHandle_t StateMachine = NULL;
+static TaskHandle_t BufferSwap = NULL;
+static TaskHandle_t Exercise2Task = NULL;
+
+// =============================================================================
+// Queues
+// =============================================================================
+static QueueHandle_t StateQueue = NULL;
+
+// =============================================================================
+// Semaphores
+// =============================================================================
+static SemaphoreHandle_t DrawSignal = NULL;
+static SemaphoreHandle_t ScreenLock = NULL;
+
+// =============================================================================
+// Defintions
+// =============================================================================
 #define mainGENERIC_PRIORITY (tskIDLE_PRIORITY)
 #define mainGENERIC_STACK_SIZE ((unsigned short)2560)
 
-
-
 #define STATE_QUEUE_LENGTH 1
+
 
 #define STATE_COUNT 3
 
@@ -50,19 +70,13 @@
 const unsigned char next_state_signal = NEXT_TASK;
 const unsigned char prev_state_signal = PREV_TASK;
 
-static TaskHandle_t StateMachine = NULL;
-static TaskHandle_t BufferSwap = NULL;
-static TaskHandle_t Exercise2Task = NULL;
-
-static QueueHandle_t StateQueue = NULL;
-
-static SemaphoreHandle_t DrawSignal = NULL;
-static SemaphoreHandle_t ScreenLock = NULL;
 
 
 
 
-
+// =============================================================================
+// Structures
+// =============================================================================
 typedef struct buttons_buffer {
     unsigned char buttons[SDL_NUM_SCANCODES];
     unsigned char lastButtonState[SDL_NUM_SCANCODES];
@@ -70,6 +84,9 @@ typedef struct buttons_buffer {
     SemaphoreHandle_t lock;
 } buttons_buffer_t;
 
+// =============================================================================
+// Global Variables
+// =============================================================================
 static buttons_buffer_t buttons = { 0 };
 
 
@@ -111,7 +128,6 @@ void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
     *ppxTimerTaskStackBuffer = uxTimerTaskStack;
     *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
-
 
 
 
@@ -337,7 +353,6 @@ int checkButton(int buttonIndex)
     }
     
 
-
     // compare the buttonState to its previous state
     if (buttonState != buttons.lastButtonState[buttonIndex]) {
         // if the state has changed, debounce and incremenet
@@ -357,7 +372,27 @@ int checkButton(int buttonIndex)
 }
  void vExercise2Task(){
      while(1){
+        if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
+                pdTRUE){
+                tumEventFetchEvents(FETCH_EVENT_BLOCK |
+                                    FETCH_EVENT_NO_GL_CHECK);
+                xGetButtonInput(); // Update global input
 
+                xSemaphoreTake(ScreenLock, portMAX_DELAY);
+
+                // Clear screen
+                checkDraw(tumDrawClear(White), __FUNCTION__);
+
+
+                // Draw FPS in lower right corner
+                vDrawFPS();
+
+                xSemaphoreGive(ScreenLock);
+
+                // Get input and check for state change
+                vCheckStateInput();
+            }
      }
  }
 
