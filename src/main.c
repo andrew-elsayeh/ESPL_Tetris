@@ -22,12 +22,15 @@
 
 #include "AsyncIO.h"
 
+#include "tetriminos.h"
+#include "frontend_helper.h"
+
 // =============================================================================
 // Tasks
 // =============================================================================
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t BufferSwap = NULL;
-static TaskHandle_t Exercise2Task = NULL;
+static TaskHandle_t DrawingTask = NULL;
 
 // =============================================================================
 // Queues
@@ -88,6 +91,8 @@ typedef struct buttons_buffer {
 // Global Variables
 // =============================================================================
 static buttons_buffer_t buttons = { 0 };
+static image_handle_t gameplay_background = NULL;
+
 
 
 
@@ -298,27 +303,27 @@ initial_state:
         if (state_changed) {
             switch (current_state) {
                 case STATE_ONE:
-                    if (Exercise2Task) {
-                        vTaskSuspend(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskSuspend(DrawingTask);
                     }
-                    if (Exercise2Task) {
-                        vTaskResume(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskResume(DrawingTask);
                     }
                     break;
                 case STATE_TWO:
-                    if (Exercise2Task) {
-                        vTaskSuspend(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskSuspend(DrawingTask);
                     }
-                    if (Exercise2Task) {
-                        vTaskResume(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskResume(DrawingTask);
                     }
                     break;
                 case STATE_THREE:
-                    if (Exercise2Task) {
-                        vTaskSuspend(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskSuspend(DrawingTask);
                     }
-                    if (Exercise2Task) {
-                        vTaskResume(Exercise2Task);
+                    if (DrawingTask) {
+                        vTaskResume(DrawingTask);
                     }
                     break;
                 default:
@@ -370,7 +375,24 @@ int checkButton(int buttonIndex)
 
     return ret;
 }
- void vExercise2Task(){
+ void vDrawingTask(){
+
+    Game_State_t Game_State = {0};
+     int row = 0;
+     int col = 0;
+
+    //Game_State.board[BOARD_WIDTH][BOA] = {0};
+
+    // for (int y = 0; y < BOARD_WIDTH; y++)
+    // {
+    //     for (int x = 0; x < BOARD_HEIGHT; x++)
+    //     {
+    //         Game_State.board[y][x] = 0;
+    //     }
+        
+    // }
+    
+
      while(1){
         if (DrawSignal)
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
@@ -379,12 +401,35 @@ int checkButton(int buttonIndex)
                                     FETCH_EVENT_NO_GL_CHECK);
                 xGetButtonInput(); // Update global input
 
+                if (checkButton(SDL_SCANCODE_DOWN)){
+                    col++;
+                }
+                if (checkButton(SDL_SCANCODE_UP)){
+                    col--;
+                }
+                if (checkButton(SDL_SCANCODE_RIGHT)){
+                    row++;
+                }
+                if (checkButton(SDL_SCANCODE_LEFT)){
+                    row--;
+                }
+                memset(Game_State.board, 0, 200);
+                Game_State.board[row][col] = 1;
+
                 xSemaphoreTake(ScreenLock, portMAX_DELAY);
 
                 // Clear screen
-                checkDraw(tumDrawClear(White), __FUNCTION__);
+                tumDrawLoadedImage(gameplay_background, 0,0);
+
+                //draw_cell(row, col, Black);
+
+                draw_board(&Game_State);
+
+            
 
 
+
+                
                 // Draw FPS in lower right corner
                 vDrawFPS();
 
@@ -419,6 +464,9 @@ int main(int argc, char *argv[])
         PRINT_ERROR("Failed to initialize audio");
         goto err_init_audio;
     }
+
+    gameplay_background = tumDrawLoadImage("background.png");
+
 
     buttons.lock = xSemaphoreCreateMutex(); // Creates a Mutex and assigns it to the lock in the buttons structure
     if (!buttons.lock) {
@@ -461,12 +509,12 @@ int main(int argc, char *argv[])
     }
 
 
-    if (xTaskCreate(vExercise2Task, "Exercise 2 Task", mainGENERIC_STACK_SIZE * 2, NULL,
-                    mainGENERIC_PRIORITY, &Exercise2Task) != pdPASS) {
+    if (xTaskCreate(vDrawingTask, "Drawing Task", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &DrawingTask) != pdPASS) {
         goto err_demotask;
     }
 
-    vTaskSuspend(Exercise2Task);
+    vTaskSuspend(DrawingTask);
 
     vTaskStartScheduler();
 
