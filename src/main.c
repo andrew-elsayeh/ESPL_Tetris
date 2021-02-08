@@ -30,7 +30,7 @@
 // =============================================================================
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t BufferSwap = NULL;
-static TaskHandle_t DrawingTask = NULL;
+static TaskHandle_t GameplayTask = NULL;
 
 // =============================================================================
 // Queues
@@ -303,27 +303,27 @@ initial_state:
         if (state_changed) {
             switch (current_state) {
                 case STATE_ONE:
-                    if (DrawingTask) {
-                        vTaskSuspend(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskSuspend(GameplayTask);
                     }
-                    if (DrawingTask) {
-                        vTaskResume(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskResume(GameplayTask);
                     }
                     break;
                 case STATE_TWO:
-                    if (DrawingTask) {
-                        vTaskSuspend(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskSuspend(GameplayTask);
                     }
-                    if (DrawingTask) {
-                        vTaskResume(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskResume(GameplayTask);
                     }
                     break;
                 case STATE_THREE:
-                    if (DrawingTask) {
-                        vTaskSuspend(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskSuspend(GameplayTask);
                     }
-                    if (DrawingTask) {
-                        vTaskResume(DrawingTask);
+                    if (GameplayTask) {
+                        vTaskResume(GameplayTask);
                     }
                     break;
                 default:
@@ -375,22 +375,11 @@ int checkButton(int buttonIndex)
 
     return ret;
 }
- void vDrawingTask(){
+ void vGameplayTask(){
 
     Game_State_t Game_State = {0};
      int row = 0;
      int col = 0;
-
-    //Game_State.board[BOARD_WIDTH][BOA] = {0};
-
-    // for (int y = 0; y < BOARD_WIDTH; y++)
-    // {
-    //     for (int x = 0; x < BOARD_HEIGHT; x++)
-    //     {
-    //         Game_State.board[y][x] = 0;
-    //     }
-        
-    // }
     
 
      while(1){
@@ -402,16 +391,16 @@ int checkButton(int buttonIndex)
                 xGetButtonInput(); // Update global input
 
                 if (checkButton(SDL_SCANCODE_DOWN)){
-                    col++;
-                }
-                if (checkButton(SDL_SCANCODE_UP)){
-                    col--;
-                }
-                if (checkButton(SDL_SCANCODE_RIGHT)){
                     row++;
                 }
-                if (checkButton(SDL_SCANCODE_LEFT)){
+                if (checkButton(SDL_SCANCODE_UP)){
                     row--;
+                }
+                if (checkButton(SDL_SCANCODE_RIGHT)){
+                    col++;
+                }
+                if (checkButton(SDL_SCANCODE_LEFT)){
+                    col--;
                 }
                 memset(Game_State.board, 0, 200);
                 Game_State.board[row][col] = 1;
@@ -424,9 +413,6 @@ int checkButton(int buttonIndex)
                 //draw_cell(row, col, Black);
 
                 draw_board(&Game_State);
-
-            
-
 
 
                 
@@ -465,7 +451,7 @@ int main(int argc, char *argv[])
         goto err_init_audio;
     }
 
-    gameplay_background = tumDrawLoadImage("background.png");
+    gameplay_background = tumDrawLoadImage("gameplay_background.png");
 
 
     buttons.lock = xSemaphoreCreateMutex(); // Creates a Mutex and assigns it to the lock in the buttons structure
@@ -509,12 +495,12 @@ int main(int argc, char *argv[])
     }
 
 
-    if (xTaskCreate(vDrawingTask, "Drawing Task", mainGENERIC_STACK_SIZE * 2, NULL,
-                    mainGENERIC_PRIORITY, &DrawingTask) != pdPASS) {
+    if (xTaskCreate(vGameplayTask, "Gameplay Task", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &GameplayTask) != pdPASS) {
         goto err_demotask;
     }
 
-    vTaskSuspend(DrawingTask);
+    vTaskSuspend(GameplayTask);
 
     vTaskStartScheduler();
 
