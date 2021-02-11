@@ -26,25 +26,62 @@
 #include "grid.h"
 #include "tetris.h"
 #include "frontend_adapter.h"
+#include "menu.h"
 
 // =============================================================================
-// Tasks
+// Tasks Handles
 // =============================================================================
 static TaskHandle_t StateMachine = NULL;
 static TaskHandle_t BufferSwap = NULL;
-static TaskHandle_t GameplayTask = NULL;
-static TaskHandle_t MainMenuTask = NULL;
+TaskHandle_t GameplayTask = NULL;
+TaskHandle_t MainMenuTask = NULL;
+TaskHandle_t PauseTask = NULL;
 
+// =============================================================================
+// Task Functions
+// =============================================================================
+extern void vMainMenuTask();
+extern void vPauseTask();
 // =============================================================================
 // Queues
 // =============================================================================
-static QueueHandle_t StateQueue = NULL;
+QueueHandle_t StateQueue = NULL;
 
 // =============================================================================
 // Semaphores
 // =============================================================================
-static SemaphoreHandle_t DrawSignal = NULL;
-static SemaphoreHandle_t ScreenLock = NULL;
+SemaphoreHandle_t DrawSignal = NULL;
+SemaphoreHandle_t ScreenLock = NULL;
+SemaphoreHandle_t GameEngineLock = NULL; //Only one task holding the Game Engine Lock can modify it
+
+// =============================================================================
+// Structures
+// =============================================================================
+typedef struct buttons_buffer {
+    unsigned char buttons[SDL_NUM_SCANCODES];
+    unsigned char lastButtonState[SDL_NUM_SCANCODES];
+    TickType_t  last_change[SDL_NUM_SCANCODES];
+    SemaphoreHandle_t lock;
+} buttons_buffer_t;
+
+
+// =============================================================================
+// Handles
+// =============================================================================
+static buttons_buffer_t buttons = { 0 };
+image_handle_t gameplay_background = NULL;
+image_handle_t mainmenu_background = NULL;
+image_handle_t pause_background = NULL;
+image_handle_t gameover_background = NULL;
+
+//Adapter between TUMDraw and the game engine
+FrontendAdapter_t mFrontendAdapter = {0};
+// Basic block in the game is called a tetrimino
+Tetrimino_t pmTetriminos = {0};
+// The grid contains tetrimintos
+Grid_t mGrid = {0};
+// The tetris game engine
+Tetris_t mGame = {0};
 
 // =============================================================================
 // Defintions
@@ -79,25 +116,6 @@ const unsigned char prev_state_signal = PREV_TASK;
 
 
 
-
-// =============================================================================
-// Structures
-// =============================================================================
-typedef struct buttons_buffer {
-    unsigned char buttons[SDL_NUM_SCANCODES];
-    unsigned char lastButtonState[SDL_NUM_SCANCODES];
-    TickType_t  last_change[SDL_NUM_SCANCODES];
-    SemaphoreHandle_t lock;
-} buttons_buffer_t;
-
-// =============================================================================
-// Global Variables
-// =============================================================================
-static buttons_buffer_t buttons = { 0 };
-image_handle_t gameplay_background = NULL;
-image_handle_t mainmenu_background = NULL;
-image_handle_t pause_background = NULL;
-image_handle_t gameover_background = NULL;
 
 
 
@@ -183,6 +201,7 @@ static int vCheckStateInput(void)
             if (StateQueue) {
                 xSemaphoreGive(buttons.lock);
                 xQueueSend(StateQueue, &next_state_signal, 0);
+                //printf("inc state\n");
                 return 0;
             }
             return -1;
@@ -308,28 +327,37 @@ initial_state:
         // Handle current state
         if (state_changed) {
             switch (current_state) {
-                case STATE_ONE: //Mainmeny
+                case STATE_ONE:         //Main Menu
                     if (GameplayTask) {
                         vTaskSuspend(GameplayTask);
+                    }
+                    if (PauseTask) {
+                        vTaskSuspend(PauseTask);
+                    }
+                    if (MainMenuTask) {
+                        vTaskResume(MainMenuTask);
+                    }
+                    break;
+                case STATE_TWO:           //Gameplay
+                    if (MainMenuTask) {
+                        vTaskSuspend(MainMenuTask);
+                    }
+                    if (PauseTask) {
+                        vTaskSuspend(PauseTask);
                     }
                     if (GameplayTask) {
                         vTaskResume(GameplayTask);
                     }
                     break;
-                case STATE_TWO:
+                case STATE_THREE:       //Pause Screen
                     if (GameplayTask) {
                         vTaskSuspend(GameplayTask);
                     }
-                    if (GameplayTask) {
-                        vTaskResume(GameplayTask);
+                    if (MainMenuTask) {
+                        vTaskSuspend(MainMenuTask);
                     }
-                    break;
-                case STATE_THREE:
-                    if (GameplayTask) {
-                        vTaskSuspend(GameplayTask);
-                    }
-                    if (GameplayTask) {
-                        vTaskResume(GameplayTask);
+                    if (PauseTask) {
+                        vTaskResume(PauseTask);
                     }
                     break;
                 default:
@@ -350,7 +378,7 @@ void xGetButtonInput(void)      //Takes a copy of the state of the buttons
 }
 
 
-
+#define GAME_SCREEN_HEIGHT (SCREEN_HEIGHT-37)
 
 int checkButton(int buttonIndex)
 {
@@ -384,119 +412,125 @@ int checkButton(int buttonIndex)
  void vGameplayTask()
  {
 
-    char buffer[20];
-    //Adapter between TUMDraw and the game engine
-    FrontendAdapter_t mFrontendAdapter = {0};
-    frontendAdapter_init(&mFrontendAdapter);
-    int mGameScreenHeight = SCREEN_HEIGHT - 37;
-    
-    // Basic block in the game is called a tetrimino
-    Tetrimino_t pmTetriminos = {0};
-    tetrimino_init(&pmTetriminos);
- 
-    // The grid contains tetrimintos
-    Grid_t mGrid = {0};
-    grid_init(&mGrid, &pmTetriminos, mGameScreenHeight);
- 
-    // The tetris game enginine
-    Tetris_t mGame = {0};
-    tetris_init(&mGame, &mGrid, &pmTetriminos, &mFrontendAdapter, mGameScreenHeight);
-    mGame.InitGame(&mGame);
+    char buffer[20];    //for printing to the screen
 
-
-	// Get the actual clock milliseconds (SDL)
+	// Current Time
 	TickType_t mTime1 = xTaskGetTickCount();
 
      while(1){
         if (DrawSignal)
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) ==
                 pdTRUE){
-                tumEventFetchEvents(FETCH_EVENT_BLOCK |
-                                    FETCH_EVENT_NO_GL_CHECK);
-
-                xSemaphoreTake(ScreenLock, portMAX_DELAY);
-                    mFrontendAdapter.ClearScreen();                      // Clear screen
-                    mGame.DrawScene(&mGame);                // Draw Game   
-                    vDrawFPS();                             // Draw FPS in lower right corner
-
-                    tumDrawText("2000",70,110, White );
-                    tumDrawText("1",70,240, White );
-                    sprintf(buffer, "%d", mGame.mGrid->mRemovedLineCount);
-                    tumDrawText(buffer,70,360, White );
-                xSemaphoreGive(ScreenLock);
-
-                xGetButtonInput(); // Update global input
-
-                if (checkButton(SDL_SCANCODE_RIGHT)){
-                    if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX + 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
-                        mGame.mPosX++;
-                }
-                if (checkButton(SDL_SCANCODE_LEFT)){
-                    if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX - 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
-                        mGame.mPosX--;	
-                }
-                if (checkButton(SDL_SCANCODE_DOWN)){
-                    if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
-                        mGame.mPosY++;	                
-                }
-                if (checkButton(SDL_SCANCODE_UP)){
-                    while (mGrid.IsPossibleMovement(
-                        &mGrid,
-                        mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
-                        mGame.mRotation)) {
-                        mGame.mPosY++;
-                    }
-
-                    mGrid.MergeTetrimino(&mGrid ,mGame.mPosX, mGame.mPosY - 1,
-                            mGame.mTetrimino, mGame.mRotation);
-
-			        mGrid.RemoveFullLines(&mGrid);
-
-                    if (mGrid.IsGameOver(&mGrid)) {
-                        xQueueSend(StateQueue, &next_state_signal, 0);
-                    }
-
-                    mGame.CreateNewPiece(&mGame);
-                }
-                
-                if (checkButton(SDL_SCANCODE_SPACE)){
-                    if (mGrid.IsPossibleMovement(
-                            &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
-                            (mGame.mRotation + 1) % 4))
-                        mGame.mRotation = (mGame.mRotation + 1) % 4;
-				}
-
-                TickType_t mTime2 = xTaskGetTickCount();
-
-                if ((mTime2 - mTime1) > WAIT_TIME)
+                if (xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE)
                 {
-                    if (mGrid.IsPossibleMovement (&mGrid,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
-                    {
-                        mGame.mPosY++;
+                    tumEventFetchEvents(FETCH_EVENT_BLOCK |
+                                        FETCH_EVENT_NO_GL_CHECK);
+
+                    xSemaphoreTake(ScreenLock, portMAX_DELAY);
+                        mFrontendAdapter.ClearScreen();                      // Clear screen
+                        mGame.DrawScene(&mGame);                // Draw Game   
+                        vDrawFPS();                             // Draw FPS in lower right corner
+
+                        tumDrawText("2000",70,110, White );
+                        tumDrawText("1",70,240, White );
+                        sprintf(buffer, "%d", mGame.mGrid->mRemovedLineCount);
+                        tumDrawText(buffer,70,360, White );
+                    xSemaphoreGive(ScreenLock);
+
+                    xGetButtonInput(); // Update global input
+
+                    if (checkButton(SDL_SCANCODE_RIGHT)){
+                        if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX + 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
+                            mGame.mPosX++;
                     }
-                    else
-                    {
-                        mGrid.MergeTetrimino (&mGrid, mGame.mPosX, mGame.mPosY, mGame.mTetrimino, mGame.mRotation);
+                    if (checkButton(SDL_SCANCODE_LEFT)){
+                        if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX - 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
+                            mGame.mPosX--;	
+                    }
+                    if (checkButton(SDL_SCANCODE_DOWN)){
+                        if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
+                            mGame.mPosY++;	                
+                    }
+                    if (checkButton(SDL_SCANCODE_UP)){
+                        while (mGrid.IsPossibleMovement(
+                            &mGrid,
+                            mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
+                            mGame.mRotation)) {
+                            mGame.mPosY++;
+                        }
 
-                        mGrid.RemoveFullLines (&mGrid);
+                        mGrid.MergeTetrimino(&mGrid ,mGame.mPosX, mGame.mPosY - 1,
+                                mGame.mTetrimino, mGame.mRotation);
 
-                        if (mGrid.IsGameOver(&mGrid))
-                        {
-                            if (StateQueue) {
-                                xQueueSend(StateQueue, &next_state_signal, 0);
-                            }
+                        mGrid.RemoveFullLines(&mGrid);
+
+                        if (mGrid.IsGameOver(&mGrid)) {
+                            xSemaphoreGive(GameEngineLock);
+                            xQueueSend(StateQueue, &prev_state_signal, 0);
                         }
 
                         mGame.CreateNewPiece(&mGame);
                     }
+                    
+                    if (checkButton(SDL_SCANCODE_SPACE)){
+                        if (mGrid.IsPossibleMovement(
+                                &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
+                                (mGame.mRotation + 1) % 4))
+                            mGame.mRotation = (mGame.mRotation + 1) % 4;
+                    }
 
-                    mTime1 = xTaskGetTickCount();
+                    TickType_t mTime2 = xTaskGetTickCount();
+
+                    if ((mTime2 - mTime1) > WAIT_TIME)
+                    {
+                        if (mGrid.IsPossibleMovement (&mGrid,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
+                        {
+                            mGame.mPosY++;
+                        }
+                        else
+                        {
+                            mGrid.MergeTetrimino (&mGrid, mGame.mPosX, mGame.mPosY, mGame.mTetrimino, mGame.mRotation);
+
+                            mGrid.RemoveFullLines (&mGrid);
+
+                            if (mGrid.IsGameOver(&mGrid))
+                            {
+                                if (StateQueue) {
+                                    xSemaphoreGive(GameEngineLock);
+                                    xQueueSend(StateQueue, &prev_state_signal, 0);
+                                }
+                            }
+
+                            mGame.CreateNewPiece(&mGame);
+                        }
+
+                        mTime1 = xTaskGetTickCount();
+                    }
+                    if(isPausePressed())
+                    {
+                        xSemaphoreGive(GameEngineLock);
+                        xQueueSend(StateQueue, &next_state_signal, 0);
+                    }
+                xSemaphoreGive(GameEngineLock);
                 }
-                vCheckStateInput();// Get input and check for state change
             }
      }
  }
 
+
+
+void vGameoverTask()
+{
+    while(1)
+    {
+        if (DrawSignal)
+            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
+            {
+                tumDrawLoadedImage(gameover_background, 0,0);
+            }
+
+    }
+}
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
@@ -574,12 +608,43 @@ int main(int argc, char *argv[])
         goto err_demotask;
     }
 
+    if (xTaskCreate(vMainMenuTask, "Main Menu Task", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &MainMenuTask) != pdPASS) {
+        goto err_menutask;
+    }
+
+    if (xTaskCreate(vPauseTask, "Pause Menu Task", mainGENERIC_STACK_SIZE * 2, NULL,
+                    mainGENERIC_PRIORITY, &PauseTask) != pdPASS) {
+        goto err_pausetask;
+    }
+
+
+    GameEngineLock = xSemaphoreCreateMutex(); 
+    if (!GameEngineLock) {
+        PRINT_ERROR("Failed to create Game Engine Lock lock");
+        goto err_engine_lock;
+    }    
+
+    frontendAdapter_init(&mFrontendAdapter);
+    tetrimino_init(&pmTetriminos);
+    grid_init(&mGrid, &pmTetriminos, GAME_SCREEN_HEIGHT);
+    tetris_init(&mGame, &mGrid, &pmTetriminos, &mFrontendAdapter, GAME_SCREEN_HEIGHT);
+    
+    vTaskSuspend(MainMenuTask);
     vTaskSuspend(GameplayTask);
+    vTaskSuspend(PauseTask);
+
 
     vTaskStartScheduler();
 
     return EXIT_SUCCESS;
 
+err_engine_lock:
+    vTaskDelete(PauseTask);
+err_pausetask:
+    vTaskDelete(MainMenuTask);
+err_menutask:
+    vTaskDelete(GameplayTask);
 err_demotask:
     vTaskDelete(StateMachine);
 err_statemachine:
