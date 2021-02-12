@@ -167,6 +167,33 @@ err_name:
     return -1;
 }
 
+// int tumSoundPlayUserSample(const char *filename)
+// {
+//     if (filename == NULL) {
+//         PRINT_ERROR("Invalid sample name provided");
+//         return -1;
+//     }
+
+//     loaded_sample_t *iterator = &user_samples;
+
+//     for (; iterator; iterator = iterator->next)
+//         if (!strcmp(basename((char *)filename), iterator->name)) {
+//             goto found_sample;
+//         }
+
+//     return -1;
+
+// found_sample:
+//     if (!iterator->sample) {
+//         PRINT_ERROR("Sample '%s' does not have a loaded sample",
+//                     iterator->name ? iterator->name : "NULL");
+//         return -1;
+//     }
+//     Mix_PlayChannel(-1, iterator->sample, 0);
+//     return 0;
+// }
+
+//Modified version of tumSoundPlayUserSample function that loops the sample
 int tumSoundPlayUserSample(const char *filename)
 {
     if (filename == NULL) {
@@ -189,6 +216,6 @@ found_sample:
                     iterator->name ? iterator->name : "NULL");
         return -1;
     }
-    Mix_PlayChannel(-1, iterator->sample, 0);
+    Mix_PlayChannel(-1, iterator->sample, -1);
     return 0;
 }

@@ -72,7 +72,6 @@ static buttons_buffer_t buttons = { 0 };
 image_handle_t gameplay_background = NULL;
 image_handle_t mainmenu_background = NULL;
 image_handle_t pause_background = NULL;
-image_handle_t gameover_background = NULL;
 
 //Adapter between TUMDraw and the game engine
 FrontendAdapter_t mFrontendAdapter = {0};
@@ -193,24 +192,7 @@ void vSwapBuffers(void *pvParameters)
     }
 }
 
-// static int vCheckStateInput(void)
-// {
-//     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-//         if (buttons.buttons[KEYCODE(E)]) {
-//             buttons.buttons[KEYCODE(E)] = 0;
-//             if (StateQueue) {
-//                 xSemaphoreGive(buttons.lock);
-//                 xQueueSend(StateQueue, &next_state_signal, 0);
-//                 //printf("inc state\n");
-//                 return 0;
-//             }
-//             return -1;
-//         }
-//         xSemaphoreGive(buttons.lock);
-//     }
 
-//     return 0;
-// }
 
 #define FPS_AVERAGE_COUNT 50
 
@@ -542,20 +524,9 @@ int checkButton(int buttonIndex)
      }
  }
 
+#define SAMPLE_FOLDER "/../resources/waveforms/"
 
-
-void vGameoverTask()
-{
-    while(1)
-    {
-        if (DrawSignal)
-            if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
-            {
-                tumDrawLoadedImage(gameover_background, 0,0);
-            }
-
-    }
-}
+#define GEN_FULL_SAMPLE_PATH(SAMPLE) SAMPLE_FOLDER #SAMPLE ".wav",
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
@@ -583,7 +554,6 @@ int main(int argc, char *argv[])
     gameplay_background = tumDrawLoadImage("gameplay_background.png");
     mainmenu_background = tumDrawLoadImage("mainmenu_background.png");
     pause_background =    tumDrawLoadImage("pause_background.png");
-    gameover_background = tumDrawLoadImage("gameover_background.png");
 
 
 
@@ -650,6 +620,22 @@ int main(int argc, char *argv[])
         goto err_engine_lock;
     }    
 
+    char *waveFileNames = "/../resources/waveforms/tetris.wav";
+
+    char *fullWaveFileNames = { 0 };
+
+    size_t bin_dir_len = strlen(bin_folder_path);
+
+    fullWaveFileNames = calloc(
+	    1, sizeof(char) * (strlen(waveFileNames) + bin_dir_len + 1));
+
+
+    strcpy(fullWaveFileNames, bin_folder_path);
+    strcat(fullWaveFileNames, waveFileNames);
+
+    tumSoundLoadUserSample(fullWaveFileNames);
+    tumSoundPlayUserSample(fullWaveFileNames);
+
     frontendAdapter_init(&mFrontendAdapter);
     tetrimino_init(&pmTetriminos);
     grid_init(&mGrid, &pmTetriminos, GAME_SCREEN_HEIGHT);
@@ -664,6 +650,8 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
+err_musictask:
+    vSemaphoreDelete(GameEngineLock);
 err_engine_lock:
     vTaskDelete(PauseTask);
 err_pausetask:
