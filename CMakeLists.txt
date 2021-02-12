@@ -1,4 +1,4 @@
-project(ESPL_Tetris)
+project(FreeRTOS_Emulator)
 
 cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
 
@@ -70,7 +70,7 @@ else()
     if(TRACE_FUNCTIONS)
         add_definitions(-DTRACE_FUNCTIONS)
         SET(GCC_COVERAGE_COMPILE_FLAGS "-finstrument-functions")
-        target_compile_options(ESPL_Tetris PUBLIC ${GCC_COVERAGE_COMPILE_FLAGS})
+        target_compile_options(FreeRTOS_Emulator PUBLIC ${GCC_COVERAGE_COMPILE_FLAGS})
     endif(TRACE_FUNCTIONS)
 
     target_link_libraries(${CMAKE_PROJECT_NAME} ${PROJECT_LIBRARIES})

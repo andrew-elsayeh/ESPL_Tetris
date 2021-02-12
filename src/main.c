@@ -90,7 +90,8 @@ typedef struct buttons_buffer {
 // =============================================================================
 static buttons_buffer_t buttons = { 0 };
 image_handle_t gameplay_background = NULL;
-image_handle_t mainmenu_background = NULL;
+image_handle_t menu_single_background = NULL;
+image_handle_t menu_multiplayer_background = NULL;
 image_handle_t pause_background = NULL;
 
 //Adapter between TUMDraw and the game engine
@@ -499,7 +500,8 @@ int main(int argc, char *argv[])
     }
 
     gameplay_background = tumDrawLoadImage("gameplay_background.png");
-    mainmenu_background = tumDrawLoadImage("mainmenu_background.png");
+    menu_single_background = tumDrawLoadImage("menu_single_background.png");
+    menu_multiplayer_background = tumDrawLoadImage("menu_multiplayer_background.png");
     pause_background =    tumDrawLoadImage("pause_background.png");
 
 
