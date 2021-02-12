@@ -413,6 +413,7 @@ int checkButton(int buttonIndex)
  {
 
     char buffer[20];    //for printing to the screen
+    int mScoreCounter = 0;
 
 	// Current Time
 	TickType_t mTime1 = xTaskGetTickCount();
@@ -430,9 +431,10 @@ int checkButton(int buttonIndex)
                         mFrontendAdapter.ClearScreen();                      // Clear screen
                         mGame.DrawScene(&mGame);                // Draw Game   
                         vDrawFPS();                             // Draw FPS in lower right corner
-
-                        tumDrawText("2000",70,110, White );
-                        tumDrawText("1",70,240, White );
+                        sprintf(buffer, "%d", mGame.mGrid->mScore);
+                        tumDrawText(buffer,70,110, White );
+                        sprintf(buffer, "%d", mGame.mGrid->mLevel);
+                        tumDrawText(buffer,70,240, White );
                         sprintf(buffer, "%d", mGame.mGrid->mRemovedLineCount);
                         tumDrawText(buffer,70,360, White );
                     xSemaphoreGive(ScreenLock);
@@ -447,11 +449,17 @@ int checkButton(int buttonIndex)
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX - 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
                             mGame.mPosX--;	
                     }
-                    if (checkButton(SDL_SCANCODE_DOWN)){
+                    if (checkButton(SDL_SCANCODE_DOWN)){    //Soft Drop
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
                             mGame.mPosY++;	                
                     }
-                    if (checkButton(SDL_SCANCODE_UP)){
+                    if (checkButton(SDL_SCANCODE_SPACE)){   //Rotation
+                        if (mGrid.IsPossibleMovement(
+                                &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
+                                (mGame.mRotation + 1) % 4))
+                            mGame.mRotation = (mGame.mRotation + 1) % 4;
+                    }
+                    if (checkButton(SDL_SCANCODE_UP)){      //Hard drop
                         while (mGrid.IsPossibleMovement(
                             &mGrid,
                             mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
@@ -472,12 +480,6 @@ int checkButton(int buttonIndex)
                         mGame.CreateNewPiece(&mGame);
                     }
                     
-                    if (checkButton(SDL_SCANCODE_SPACE)){
-                        if (mGrid.IsPossibleMovement(
-                                &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
-                                (mGame.mRotation + 1) % 4))
-                            mGame.mRotation = (mGame.mRotation + 1) % 4;
-                    }
 
                     TickType_t mTime2 = xTaskGetTickCount();
 

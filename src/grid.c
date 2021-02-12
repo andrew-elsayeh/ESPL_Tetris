@@ -60,11 +60,36 @@ static void DeleteLine(Grid_t *grid, int pY)
     } 
 }
 
+/*
+ * Original nintendo scoring system
+ */
+static void increaseScore (Grid_t *grid, int numRemovedLines)
+{
+    switch (numRemovedLines)
+    {
+    case 1:
+        grid->mScore = grid->mScore + 40*(grid->mLevel+1);
+        break;
+    case 2:
+        grid->mScore = grid->mScore + 100*(grid->mLevel+1);
+        break;
+    case 3:
+        grid->mScore = grid->mScore + 300*(grid->mLevel+1);
+        break;    
+    case 4:
+        grid->mScore = grid->mScore + 1200*(grid->mLevel+1);
+        break;
+    default:
+        break;
+    }
+}
+
 /* 
- * Checks for full lines and deletes them
+ * Checks for full lines and deletes them, and increases the score accordingly
  */
 static void RemoveFullLines (Grid_t *grid)
 {
+    int mRemovedCount = 0;
     for (int j = 0; j < GRID_HEIGHT; j++)
     {
         int i = 0;
@@ -77,11 +102,14 @@ static void RemoveFullLines (Grid_t *grid)
         if (i == GRID_WIDTH) 
         {
             DeleteLine (grid, j);
+            mRemovedCount++;
             grid->mRemovedLineCount++;
-            vTaskDelay(200);
+            increaseScore(grid, mRemovedCount);
+            vTaskDelay(300);
         }
 
     }
+
 }
 
 /* 

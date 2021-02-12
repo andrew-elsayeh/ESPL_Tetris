@@ -131,7 +131,27 @@ static bool isModeRightPressed()
 }
 
 
-enum MainMenuButton buttonPress(TickType_t *lastButtonPress)
+static bool isNewGamePressed()
+{
+    int x = tumEventGetMouseX();
+    int y = tumEventGetMouseY();
+    int click = tumEventGetMouseLeft();
+    if  (x >= 245 && x <= 400)
+    {
+        if(y >= 335 && y <= 365)
+        {
+            if(click)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+
+static enum MainMenuButton buttonPress(TickType_t *lastButtonPress)
 {
     if (xTaskGetTickCount() - *lastButtonPress  > 100)  //Basic Debouncing of Mouse Key
     {
@@ -175,7 +195,7 @@ void vMainMenuTask()
                 case START:
                     if(xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE){
                         printf("took lock\n");
-                        mGame.InitGame(&mGame);
+                        mGame.InitGame(&mGame, startingLevel);
                         mGame.mGrid->ResetGrid(mGame.mGrid);
                         xSemaphoreGive(GameEngineLock);
                                                 printf("gave lock\n");
@@ -206,23 +226,7 @@ void vMainMenuTask()
 }
 
 
-static bool isNewGamePressed()
-{
-    int x = tumEventGetMouseX();
-    int y = tumEventGetMouseY();
-    int click = tumEventGetMouseLeft();
-    if  (x >= 245 && x <= 400)
-    {
-        if(y >= 335 && y <= 365)
-        {
-            if(click)
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
+
 
 void vPauseTask()
 {

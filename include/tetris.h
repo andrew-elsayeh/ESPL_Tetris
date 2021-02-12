@@ -31,7 +31,7 @@ struct Tetris
     FrontendAdapter_t *mFrontendAdapter;
  
     int (*GetRand) (int pA, int pB);
-    void (*InitGame) (Tetris_t *tetris);
+    void (*InitGame) (Tetris_t *tetris, int startingLevel);
     void (*DrawPiece) (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation);
     void (*DrawBoard) (Tetris_t *tetris);
 };

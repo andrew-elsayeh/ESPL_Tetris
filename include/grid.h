@@ -41,7 +41,7 @@ struct Grid
     //Members and Attributes
     int          mGameScreenHeight;
     int          mGrid [GRID_WIDTH][GRID_HEIGHT]; // Grid that contains the pieces
-    int         mRemovedLineCount;         //Used to monitor game progress
+    int          mRemovedLineCount, mScore, mLevel;         //Used to monitor game progress
     Tetrimino_t *pmTetriminos;
 };
  

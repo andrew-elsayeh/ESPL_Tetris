@@ -13,10 +13,12 @@ int GetRand (int pA, int pB)
 /**
  * Starts a new game
  */
-void InitGame(Tetris_t *tetris)
+void InitGame(Tetris_t *tetris, int startingLevel)
 {
     srand ((unsigned int) time(NULL));
 
+    tetris->mGrid->mScore = 0;
+    tetris->mGrid->mLevel = startingLevel;
  
     // First tetrimino
     tetris->mTetrimino        = GetRand (0, 6);
