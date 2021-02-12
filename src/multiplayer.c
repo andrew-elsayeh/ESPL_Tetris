@@ -1,103 +1,113 @@
 #include "AsyncIO.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "task.h"
 #include "queue.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /** AsyncIO related */
 #define UDP_BUFFER_SIZE 1024
 #define UDP_RECEIVE_PORT 1234
 #define UDP_TRANSMIT_PORT 1235
 
+
+
+
+QueueHandle_t PieceQueue = NULL;
+
 TaskHandle_t UDPControlTask = NULL;
+SemaphoreHandle_t HandleUDP = NULL;
 
 
 aIO_handle_t udp_soc_receive = NULL, udp_soc_transmit = NULL;
 
-typedef enum { NONE = 0, INC = 1, DEC = -1 } opponent_cmd_t;
+
 
 void UDPHandler(size_t read_size, char *buffer, void *args)
 {
-    opponent_cmd_t next_key = NONE;
     BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
     BaseType_t xHigherPriorityTaskWoken2 = pdFALSE;
     BaseType_t xHigherPriorityTaskWoken3 = pdFALSE;
 
+
+    int buffer2;
+
     if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) ==
         pdTRUE) {
+        if (strncmp(buffer, "NEXT=", 
+                    (read_size < 5) ? read_size : 5) == 0) {
+            if(read_size > 5) {
+                switch (buffer[5]) {
+                    case 'O': buffer2 = 0; break;
+                    case 'I': buffer2 = 1; break;
+                    case 'L': buffer2 = 2; break;
+                    case 'J': buffer2 = 3; break;
+                    case 'Z': buffer2 = 4; break;
+                    case 'S': buffer2 = 5; break;
+                    case 'T': buffer2 = 6; break;
+                }
 
-        char send_command = 0;
-        if (strncmp(buffer, "INC", (read_size < 3) ? read_size : 3) ==
-            0) {
-            next_key = INC;
-            send_command = 1;
-        }
-        else if (strncmp(buffer, "DEC",
-                         (read_size < 3) ? read_size : 3) == 0) {
-            next_key = DEC;
-            send_command = 1;
-        }
-        else if (strncmp(buffer, "NONE",
-                         (read_size < 4) ? read_size : 4) == 0) {
-            next_key = NONE;
-            send_command = 1;
+                xQueueSendFromISR(PieceQueue, &buffer2, &xHigherPriorityTaskWoken2);
+            }
         }
 
-        if (NextKeyQueue && send_command) {
-            xQueueSendFromISR(NextKeyQueue, (void *)&next_key,
-                              &xHigherPriorityTaskWoken2);
-        }
+
         xSemaphoreGiveFromISR(HandleUDP, &xHigherPriorityTaskWoken3);
 
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 |
                            xHigherPriorityTaskWoken2 |
                            xHigherPriorityTaskWoken3);
     }
-    else {
-        fprintf(stderr, "[ERROR] Overlapping UDPHandler call\n");
-    }
 }
 
-void vUDPControlTask(void *pvParameters)
-{
-    static char buf[50];            //Buffer to store sth
-    char *addr = NULL;              //Address to something
-    in_port_t port = UDP_RECEIVE_PORT;  //the UDP Recieve port
-    unsigned int ball_y = 0;    
-    unsigned int paddle_y = 0;
-    char last_difficulty = -1;
-    char difficulty = 1;
 
-    udp_soc_receive =
-        aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+void setMode(int Algorithm)
+{
+    char* mode;
+    switch (Algorithm)
+    {
+    case 0:
+        mode = "FAIR";
+        break;
+    case 1:
+        mode = "RANDOM";
+        break;
+    case 2:
+        mode = "EASY";
+        break;
+    case 3:
+        mode = "HARD";
+        break;
+    case 4:
+        mode = "DETERMINISTIC";
+        break;
+    default:
+        break;
+    }
+    char buf[20];
+    sprintf(buf, "MODE=%s", mode);
+    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
+void requestShape(){
+    char buf[10];
+    sprintf(buf, "NEXT");
+    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
+void startMultiplayer()
+{
+    char *addr = NULL; // Loopback
+    in_port_t port = UDP_RECEIVE_PORT;
+
+    udp_soc_receive = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+
+    HandleUDP = xSemaphoreCreateMutex();
+
+
+    PieceQueue = xQueueCreate(10, sizeof(int));
 
     printf("UDP socket opened on port %d\n", port);
-
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(15));
-        //Empty Queues?
-        while (xQueueReceive(BallYQueue, &ball_y, 0) == pdTRUE) {
-        }
-        while (xQueueReceive(PaddleYQueue, &paddle_y, 0) == pdTRUE) {
-        }
-        while (xQueueReceive(DifficultyQueue, &difficulty, 0) == pdTRUE) {
-        }
-
-        //Calcuate some number and cast it onto a string
-        signed int diff = ball_y - paddle_y;
-        if (diff > 0) {
-            sprintf(buf, "+%d", diff);
-        }
-        else {
-            sprintf(buf, "-%d", -diff);
-        }
-
-        //Send this string over
-        aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
-        
-        if (last_difficulty != difficulty) {                            //If difficulty changes
-
-            sprintf(buf, "D%d", difficulty + 1);                         //write command to send 
-            aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf)); //Send it away
-            last_difficulty = difficulty;
-        }
-    }
 }

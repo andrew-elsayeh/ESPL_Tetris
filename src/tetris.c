@@ -1,7 +1,12 @@
 #include "tetris.h"
+#include "multiplayer.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 
 extern SemaphoreHandle_t GameEngineLock;
 extern QueueHandle_t    StateQueue;
+
+extern QueueHandle_t PieceQueue;
 
 /*                                   
 Returns a random number between 2 integers
@@ -12,11 +17,35 @@ int GetRand (int pA, int pB)
     return rand () % (pB - pA + 1) + pA;
 }
 
+/*                                   
+Returns a random number between 2 integers
+ 
+*/
+int GetRandRotation (int pA, int pB)
+{
+    return rand () % (pB - pA + 1) + pA;
+}
+
+
+int getPiecefromUDB(int p1, int p2)
+{
+    int pieceNum;
+    requestShape();
+    xQueueReceive(PieceQueue, &pieceNum, portMAX_DELAY);
+    return pieceNum;
+}
+
 /**
  * Starts a new game
  */
-void InitGame(Tetris_t *tetris, int startingLevel)
+void InitGame(Tetris_t *tetris, int startingLevel, bool Multiplayer, int Algorithm)
 {
+    if(Multiplayer)
+    {
+        startMultiplayer();
+        setMode(Algorithm);
+        tetris->GetRand = getPiecefromUDB;
+    }
     srand ((unsigned int) time(NULL));
 
     tetris->mGrid->mScore = 0;
@@ -24,13 +53,13 @@ void InitGame(Tetris_t *tetris, int startingLevel)
  
     // First tetrimino
     tetris->mTetrimino        = GetRand (0, 6);
-    tetris->mRotation       = GetRand (0, 3);
+    tetris->mRotation       = GetRandRotation (0, 3);
     tetris->mPosX           = 2;
     tetris->mPosY           = -3;
 
     //  Next tetrimino
     tetris->mNextTetrimino      = GetRand (0, 6);
-    tetris->mNextRotation   = GetRand (0, 3);
+    tetris->mNextRotation   = GetRandRotation (0, 3);
     tetris->mNextPosX       = GRID_WIDTH + 3;
     tetris->mNextPosY       = 9;    
 
@@ -66,7 +95,7 @@ void CreateNewPiece(Tetris_t *tetris)
 
     // Random next tetrimino
     tetris->mNextTetrimino      = GetRand (0, 6);
-    tetris->mNextRotation   = GetRand (0, 3);
+    tetris->mNextRotation   = GetRandRotation (0, 3);
 }
 
 /**

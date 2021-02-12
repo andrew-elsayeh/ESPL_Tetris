@@ -280,7 +280,7 @@ void vMainMenuTask()
                 {
                 case START:
                     if(xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE){
-                        mGame.InitGame(&mGame, startingLevel);
+                        mGame.InitGame(&mGame, startingLevel, (bool)Mode, Algorithm);
                         mGame.mGrid->ResetGrid(mGame.mGrid);
                         xSemaphoreGive(GameEngineLock);
                     }
