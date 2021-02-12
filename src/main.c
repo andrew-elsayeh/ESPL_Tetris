@@ -6,8 +6,17 @@
 * Description: This is a clone of the famous Tetris game, written in C on top 
 * FreeRTOS. Graphics, Input and Sounds are handled by the FreeRTOS emulator 
 * using SDL2
+*  
+* main.c contains the initialization sequence (Task Creation, etc.. ) Along with 
+* the main game loop and a state machine
 * 
-* The main file contains
+* For clarity, the program is strucutre as follows:
+*
+*                        frontend_adapter       menu
+*                                      |        |
+*                                      V        V
+*             tetriminos => grid => tetris => main.c
+*                                    
 *******************************************************************************/
 #include <math.h>
 #include <stdio.h>
@@ -194,6 +203,10 @@ void vDrawFPS(void)
 			SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 2, Skyblue);
 }
 
+
+// =============================================================================
+// State Machine
+// =============================================================================
 void changeState(volatile unsigned char *state, unsigned char forwards)
 {
     switch (forwards) {
@@ -218,10 +231,6 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
     }
 }
 
-
-// =============================================================================
-// State Machine
-// =============================================================================
 const unsigned char next_state_signal = NEXT_TASK;
 const unsigned char prev_state_signal = PREV_TASK;
 
@@ -461,6 +470,10 @@ int checkButton(int buttonIndex)
      }
  }
 
+
+// =============================================================================
+// Initialization Sequence
+// =============================================================================
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
