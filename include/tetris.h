@@ -10,6 +10,7 @@
 
 #define WAIT_TIME 250 // Number of milliseconds that the piece remains before going 1 block down */
 
+#define TetrisBlue (unsigned int)(0x0033cc) //A blue that blends in better with the color theme
 
 typedef struct Tetris Tetris_t;
 
@@ -18,7 +19,8 @@ struct Tetris
     void (*DrawScene) (Tetris_t *tetris);
     void (*CreateNewPiece) (Tetris_t *tetris);
      
-    int mPosX, mPosY;               // Position of the tetrimino that is falling down
+    int mPosX, mPosY;                   // Position of the tetrimino that is falling down
+    int mShadowPosX, mShadowPosY;
     int mTetrimino, mRotation;          // Type and rotation of the tetrimino that is falling down
 
     int mGameScreenHeight;              // Screen height in pixels

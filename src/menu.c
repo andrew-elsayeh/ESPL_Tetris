@@ -164,7 +164,7 @@ static enum MainMenuButton buttonPress(TickType_t *lastButtonPress)
     return NONE;
 } 
 
-
+#define MAX_LEVEL 29
 
 void vMainMenuTask()
 {
@@ -173,18 +173,25 @@ void vMainMenuTask()
     int highScore = 0;
     enum gameMode {SINGLE_PLAYER, MULTIPLAYER};
     enum gameMode Mode;
-    char level[10];
+    char startingLevel_str[12];
+    char highScore_str[12];
+
     TickType_t last_change = 0;
     while(1)
     {
         if (DrawSignal)
             if (xSemaphoreTake(DrawSignal, portMAX_DELAY) == pdTRUE)
             {
+                if(xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE){
+                    highScore = mGame.mGrid->mHighScore;
+                    xSemaphoreGive(GameEngineLock);
+                }
+
                 if (xSemaphoreTake(ScreenLock, portMAX_DELAY) == pdTRUE)
                 {
                     tumDrawLoadedImage(mainmenu_background, 0,0);
-                    tumDrawText(level, 365, 340, White);
-                    tumDrawText("2000", 308, 72, White);
+                    tumDrawText(startingLevel_str, 365, 340, White);
+                    tumDrawText(highScore_str, 308, 72, White);
                     xSemaphoreGive(ScreenLock);
                 }
 		        tumEventFetchEvents(FETCH_EVENT_BLOCK | FETCH_EVENT_NO_GL_CHECK);
@@ -194,21 +201,18 @@ void vMainMenuTask()
                 {
                 case START:
                     if(xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE){
-                        printf("took lock\n");
                         mGame.InitGame(&mGame, startingLevel);
                         mGame.mGrid->ResetGrid(mGame.mGrid);
                         xSemaphoreGive(GameEngineLock);
-                                                printf("gave lock\n");
-
                     }
                     xQueueSend(StateQueue, &next_state_signal, 0);
                     break;
                 case LEVEL_LEFT:
                     if(startingLevel>0)
-                        startingLevel = (startingLevel %29 )-1;
+                        startingLevel = (startingLevel % MAX_LEVEL )-1;
                     break;
                 case LEVEL_RIGHT:
-                    startingLevel= (startingLevel %29) +1 ;
+                    startingLevel= (startingLevel % MAX_LEVEL) +1 ;
                     break;
                 case MODE_LEFT:
                     Mode--;
@@ -217,8 +221,8 @@ void vMainMenuTask()
                 default:
                     break;
                 }
-
-                sprintf(level, "%d", startingLevel);
+                sprintf(startingLevel_str, "%d", startingLevel);
+                sprintf(highScore_str, "%d", highScore);
 
             }
 

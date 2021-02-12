@@ -4,7 +4,7 @@
 // =============================================================================
 // Pieces Definitions
 // =============================================================================
-static uint16_t pusTetriminos [7 /*kind */ ][4 /* rotation */ ][5 /* horizontal blocks */ ][5 /* vertical blocks */ ] =
+static const uint16_t pusTetriminos [7 /*kind */ ][4 /* rotation */ ][5 /* horizontal blocks */ ][5 /* vertical blocks */ ] =
 {
 // O
   {

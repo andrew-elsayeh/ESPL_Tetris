@@ -193,24 +193,24 @@ void vSwapBuffers(void *pvParameters)
     }
 }
 
-static int vCheckStateInput(void)
-{
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        if (buttons.buttons[KEYCODE(E)]) {
-            buttons.buttons[KEYCODE(E)] = 0;
-            if (StateQueue) {
-                xSemaphoreGive(buttons.lock);
-                xQueueSend(StateQueue, &next_state_signal, 0);
-                //printf("inc state\n");
-                return 0;
-            }
-            return -1;
-        }
-        xSemaphoreGive(buttons.lock);
-    }
+// static int vCheckStateInput(void)
+// {
+//     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
+//         if (buttons.buttons[KEYCODE(E)]) {
+//             buttons.buttons[KEYCODE(E)] = 0;
+//             if (StateQueue) {
+//                 xSemaphoreGive(buttons.lock);
+//                 xQueueSend(StateQueue, &next_state_signal, 0);
+//                 //printf("inc state\n");
+//                 return 0;
+//             }
+//             return -1;
+//         }
+//         xSemaphoreGive(buttons.lock);
+//     }
 
-    return 0;
-}
+//     return 0;
+// }
 
 #define FPS_AVERAGE_COUNT 50
 
@@ -409,11 +409,11 @@ int checkButton(int buttonIndex)
 
     return ret;
 }
+
  void vGameplayTask()
  {
 
     char buffer[20];    //for printing to the screen
-    int mScoreCounter = 0;
 
 	// Current Time
 	TickType_t mTime1 = xTaskGetTickCount();
@@ -431,11 +431,11 @@ int checkButton(int buttonIndex)
                         mFrontendAdapter.ClearScreen();                      // Clear screen
                         mGame.DrawScene(&mGame);                // Draw Game   
                         vDrawFPS();                             // Draw FPS in lower right corner
-                        sprintf(buffer, "%d", mGame.mGrid->mScore);
+                        sprintf(buffer, "%d", mGrid.mScore);
                         tumDrawText(buffer,70,110, White );
-                        sprintf(buffer, "%d", mGame.mGrid->mLevel);
+                        sprintf(buffer, "%d", mGrid.mLevel);
                         tumDrawText(buffer,70,240, White );
-                        sprintf(buffer, "%d", mGame.mGrid->mRemovedLineCount);
+                        sprintf(buffer, "%d", mGrid.mRemovedLineCount);
                         tumDrawText(buffer,70,360, White );
                     xSemaphoreGive(ScreenLock);
 
@@ -472,7 +472,14 @@ int checkButton(int buttonIndex)
 
                         mGrid.RemoveFullLines(&mGrid);
 
+                        mGrid.updateLevel(&mGrid);
+
+
                         if (mGrid.IsGameOver(&mGrid)) {
+                            if(mGrid.mScore > mGrid.mHighScore) //Update High Score
+                            {
+                                mGrid.mHighScore = mGrid.mScore;
+                            }
                             xSemaphoreGive(GameEngineLock);
                             xQueueSend(StateQueue, &prev_state_signal, 0);
                         }
@@ -480,10 +487,9 @@ int checkButton(int buttonIndex)
                         mGame.CreateNewPiece(&mGame);
                     }
                     
-
                     TickType_t mTime2 = xTaskGetTickCount();
 
-                    if ((mTime2 - mTime1) > WAIT_TIME)
+                    if ((mTime2 - mTime1) > pdMS_TO_TICKS(mGrid.waitTimeinMS(&mGrid)))
                     {
                         if (mGrid.IsPossibleMovement (&mGrid,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
                         {
@@ -491,12 +497,19 @@ int checkButton(int buttonIndex)
                         }
                         else
                         {
-                            mGrid.MergeTetrimino (&mGrid, mGame.mPosX, mGame.mPosY, mGame.mTetrimino, mGame.mRotation);
+                            mGrid.MergeTetrimino (&mGrid, mGame.mPosX, mGame.mPosY, 
+                                                mGame.mTetrimino, mGame.mRotation);
 
                             mGrid.RemoveFullLines (&mGrid);
 
+                            mGrid.updateLevel(&mGrid);
+
                             if (mGrid.IsGameOver(&mGrid))
                             {
+                                if(mGrid.mScore > mGrid.mHighScore) //Update High Score
+                                {
+                                    mGrid.mHighScore = mGrid.mScore;
+                                }
                                 if (StateQueue) {
                                     xSemaphoreGive(GameEngineLock);
                                     xQueueSend(StateQueue, &prev_state_signal, 0);

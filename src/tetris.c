@@ -74,7 +74,7 @@ void DrawPiece (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation)
                 case 1: mColor = Yellow; break;  
                 case 2: mColor = Cyan; break;   
                 case 3: mColor = Orange; break;
-                case 4: mColor = Blue; break;
+                case 4: mColor = TetrisBlue; break;
                 case 5: mColor = Red; break;
                 case 6: mColor = Green; break;
                 case 7: mColor = Purple; break;
@@ -119,7 +119,7 @@ void DrawBoard (Tetris_t *tetris)
                     case 1: mColor = Yellow; break;  
                     case 2: mColor = Cyan; break;   
                     case 3: mColor = Orange; break;
-                    case 4: mColor = Blue; break;
+                    case 4: mColor = TetrisBlue; break;
                     case 5: mColor = Red; break;
                     case 6: mColor = Green; break;
                     case 7: mColor = Purple; break;

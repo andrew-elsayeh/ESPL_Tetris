@@ -13,6 +13,8 @@ void static ResetGrid(Grid_t *grid)
 	}
 
     grid->mRemovedLineCount = 0;
+    grid->mStartngLines = 0;
+    grid->startLevelingUp  = false;
 }
 
 /* 
@@ -105,7 +107,7 @@ static void RemoveFullLines (Grid_t *grid)
             mRemovedCount++;
             grid->mRemovedLineCount++;
             increaseScore(grid, mRemovedCount);
-            vTaskDelay(300);
+            //vTaskDelay(300);
         }
 
     }
@@ -164,6 +166,39 @@ bool IsPossibleMovement(Grid_t *grid, int pX, int pY, int pTetrimino,
 	return true;
 }
 
+
+
+
+/*
+ * Returns the time to wait before dropping a block in MS
+ */
+int waitTimeinMS(Grid_t *grid)
+{
+    return waitTime[grid->mLevel];
+}
+
+/*
+ * Updates the level based on the current level and the removed lines according to official spec
+ * If a higher starting level is chosen than 0, you don't level up until you reach a specific number
+ * of lines reached
+ */
+void updateLevel(Grid_t *grid)
+{
+    if(grid->mRemovedLineCount > grid->mLevel*10 + 10 //If player clears startLevel*10 +10 lines
+    || grid->mRemovedLineCount > 100){                //Or if player clears 100 lines
+        grid->startLevelingUp = true;
+    }                      
+
+    if(grid->startLevelingUp)
+    {
+        if(grid->mRemovedLineCount - grid->mStartngLines >= 10)
+        {
+            grid->mLevel++;
+            grid->mStartngLines = grid->mStartngLines +10;
+        }
+    }
+}
+
 /**
  * @brief Creates and initializes a grid object, bindes methods and attributes
  *
@@ -181,5 +216,8 @@ void grid_init(Grid_t *grid, Tetrimino_t *pTetriminos, int pScreenHeight)
     grid->IsFreeBlock = IsFreeBlock;
     grid->GetXPosInPixels = GetXPosInPixels;
     grid->GetYPosInPixels = GetYPosInPixels;
+    grid->waitTimeinMS = waitTimeinMS;
+    grid->updateLevel = updateLevel;
+    
 
 }
