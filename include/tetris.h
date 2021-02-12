@@ -1,3 +1,12 @@
+/******************************************************************************
+* File Name: tetris.h
+*
+*
+* Description: Tetris is the highest level object of the game engine
+* It is primarily responisble for rendering the game 
+* 
+*******************************************************************************/
+
 #pragma once
 
 #include<stdlib.h>
@@ -14,7 +23,6 @@
 #include <time.h>
 
 
-#define WAIT_TIME 250 // Number of milliseconds that the piece remains before going 1 block down */
 
 #define TetrisBlue (unsigned int)(0x0033cc) //A blue that blends in better with the color theme
 

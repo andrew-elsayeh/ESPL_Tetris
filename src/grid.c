@@ -184,8 +184,8 @@ int waitTimeinMS(Grid_t *grid)
  */
 void updateLevel(Grid_t *grid)
 {
-    if(grid->mRemovedLineCount > grid->mLevel*10 + 10 //If player clears startLevel*10 +10 lines
-    || grid->mRemovedLineCount > 100){                //Or if player clears 100 lines
+    if(grid->mRemovedLineCount >= grid->mLevel*10 + 10 //If player clears startLevel*10 +10 lines
+    || grid->mRemovedLineCount >= 100){                //Or if player clears 100 lines
         grid->startLevelingUp = true;
     }                      
 

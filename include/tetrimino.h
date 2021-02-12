@@ -1,3 +1,13 @@
+/******************************************************************************
+* File Name: tetrimino.h
+*
+*
+* Description: This file just stores the shape of each tetrimino, and defines
+* a very simple object structure that is used in the other higher level Objects 
+* 
+*******************************************************************************/
+
+
 #pragma once
 #include <stdint.h>
 

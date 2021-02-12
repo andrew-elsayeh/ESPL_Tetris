@@ -1,3 +1,14 @@
+/******************************************************************************
+* File Name: main.c
+*
+* Related Document: See Readme.md
+*
+* Description: This is a clone of the famous Tetris game, written in C on top 
+* FreeRTOS. Graphics, Input and Sounds are handled by the FreeRTOS emulator 
+* using SDL2
+* 
+* The main file contains
+*******************************************************************************/
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +63,7 @@ QueueHandle_t StateQueue = NULL;
 // =============================================================================
 SemaphoreHandle_t DrawSignal = NULL;
 SemaphoreHandle_t ScreenLock = NULL;
-SemaphoreHandle_t GameEngineLock = NULL; //Only one task holding the Game Engine Lock can modify it
+SemaphoreHandle_t GameEngineLock = NULL; //!!Only one task holding the Game Engine Lock can modify it
 
 // =============================================================================
 // Structures
@@ -109,67 +120,6 @@ Tetris_t mGame = {0};
 #define STATIC_STACK_SIZE 0
 
 
-const unsigned char next_state_signal = NEXT_TASK;
-const unsigned char prev_state_signal = PREV_TASK;
-
-
-
-
-
-
-
-
-/* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
-implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
-used by the Idle task. */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
-                                    StackType_t **ppxIdleTaskStackBuffer,
-                                    uint32_t *pulIdleTaskStackSize )
-{
-/* If the buffers to be provided to the Idle task are declared inside this
-function then they must be declared static – otherwise they will be allocated on
-the stack and so not exists after this function exits. */
-static StaticTask_t xIdleTaskTCB;
-static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
-
-    /* Pass out a pointer to the StaticTask_t structure in which the Idle task’s
-    state will be stored. */
-    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
-
-    /* Pass out the array that will be used as the Idle task’s stack. */
-    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
-
-    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
-    Note that, as the array is necessarily of type StackType_t,
-    configMINIMAL_STACK_SIZE is specified in words, not bytes. */
-    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-}
-/*———————————————————–*/
-
-void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
-                                     StackType_t **ppxTimerTaskStackBuffer,
-                                     uint32_t *pulTimerTaskStackSize )
-{
-    static StaticTask_t xTimerTaskTCB;
-    static StackType_t uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
-    *ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
-    *ppxTimerTaskStackBuffer = uxTimerTaskStack;
-    *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
-}
-
-
-
-void checkDraw(unsigned char status, const char *msg)
-{
-    if (status) {
-        if (msg)
-            fprints(stderr, "[ERROR] %s, %s\n", msg,
-                    tumGetErrorMessage());
-        else {
-            fprints(stderr, "[ERROR] %s\n", tumGetErrorMessage());
-        }
-    }   
-}
 /*  
  *   The Task that refreshes the screen at a constant frame rate
  */
@@ -236,21 +186,14 @@ void vDrawFPS(void)
 
     fps = periods_total / average_count;
 
-  //  tumFontSelectFontFromName(FPS_FONT);
 
     sprintf(str, "FPS: %2d", fps);
 
     if (!tumGetTextSize((char *)str, &text_width, NULL))
-        checkDraw(tumDrawText(str, SCREEN_WIDTH - text_width - 20,
-                              SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 2,
-                              Skyblue),
-                  __FUNCTION__);
-
+	    tumDrawText(str, SCREEN_WIDTH - text_width - 20,
+			SCREEN_HEIGHT - DEFAULT_FONT_SIZE * 2, Skyblue);
 }
 
-/*
- * Changes the state, either forwards of backwards
- */
 void changeState(volatile unsigned char *state, unsigned char forwards)
 {
     switch (forwards) {
@@ -275,35 +218,38 @@ void changeState(volatile unsigned char *state, unsigned char forwards)
     }
 }
 
-/*
- * Example basic state machine with sequential states
- */
-void basicSequentialStateMachine(void *pvParameters)
+
+// =============================================================================
+// State Machine
+// =============================================================================
+const unsigned char next_state_signal = NEXT_TASK;
+const unsigned char prev_state_signal = PREV_TASK;
+
+void vStateMachine(void *pvParameters)
 {
-    unsigned char current_state = STARTING_STATE; // Default state
-    unsigned char state_changed =
-        1; // Only re-evaluate state if it has changed
-    unsigned char input = 0;
+	unsigned char current_state = STARTING_STATE; // Default state
+	unsigned char state_changed = 1;              // Only re-evaluate state if it has changed
+	unsigned char input = 0;
 
-    const int state_change_period = STATE_DEBOUNCE_DELAY;
+	const int state_change_period = STATE_DEBOUNCE_DELAY;
 
-    TickType_t last_change = xTaskGetTickCount();
+	TickType_t last_change = xTaskGetTickCount();
 
-    while (1) {
-        if (state_changed) {
-            goto initial_state;
-        }
+	while (1) {
+		if (state_changed) {
+			goto initial_state;
+		}
 
-        // Handle state machine input
-        if (StateQueue)
-            if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
-                pdTRUE)
-                if (xTaskGetTickCount() - last_change >
-                    state_change_period) {
-                    changeState(&current_state, input);
-                    state_changed = 1;
-                    last_change = xTaskGetTickCount();
-                }
+		// Handle state machine input
+		if (StateQueue)
+			if (xQueueReceive(StateQueue, &input, portMAX_DELAY) ==
+			    pdTRUE)
+				if (xTaskGetTickCount() - last_change >
+				    state_change_period) {
+					changeState(&current_state, input);
+					state_changed = 1;
+					last_change = xTaskGetTickCount();
+				}
 
 initial_state:
         // Handle current state
@@ -351,13 +297,6 @@ initial_state:
 }
 
 
-void xGetButtonInput(void)      //Takes a copy of the state of the buttons
-{
-    if (xSemaphoreTake(buttons.lock, 0) == pdTRUE) {
-        xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
-        xSemaphoreGive(buttons.lock);
-    }
-}
 
 
 #define GAME_SCREEN_HEIGHT (SCREEN_HEIGHT-37)
@@ -368,8 +307,10 @@ int checkButton(int buttonIndex)
     int ret = 0;
     const int debounce_delay = pdMS_TO_TICKS(20);
     
+
     if (xSemaphoreTake(buttons.lock, 0) == pdTRUE)
     {
+        xQueueReceive(buttonInputQueue, &buttons.buttons, 0);
         buttonState = buttons.buttons[buttonIndex];
     }
     
@@ -391,11 +332,15 @@ int checkButton(int buttonIndex)
 
     return ret;
 }
-
+// =============================================================================
+// Main Game Loop
+// 1. Draw everything
+// 2. Handle Player Input and Process Result
+// =============================================================================
  void vGameplayTask()
  {
-
-    char buffer[20];    //for printing to the screen
+    //Small string buffer for printing the score, level and lines to the screen
+    char buffer[20];    
 
 	// Current Time
 	TickType_t mTime1 = xTaskGetTickCount();
@@ -410,18 +355,17 @@ int checkButton(int buttonIndex)
                                         FETCH_EVENT_NO_GL_CHECK);
 
                     xSemaphoreTake(ScreenLock, portMAX_DELAY);
-                        mFrontendAdapter.ClearScreen();                      // Clear screen
-                        mGame.DrawScene(&mGame);                // Draw Game   
-                        vDrawFPS();                             // Draw FPS in lower right corner
+                        mFrontendAdapter.ClearScreen();                     // Clear screen
+                        mGame.DrawScene(&mGame);                            // Draw Game   
+                        vDrawFPS();                                         // Draw FPS in lower right corner
                         sprintf(buffer, "%d", mGrid.mScore);
-                        tumDrawText(buffer,70,110, White );
+                        tumDrawText(buffer,70,110, White );                 //Print the score
                         sprintf(buffer, "%d", mGrid.mLevel);
-                        tumDrawText(buffer,70,240, White );
-                        sprintf(buffer, "%d", mGrid.mRemovedLineCount);
-                        tumDrawText(buffer,70,360, White );
+                        tumDrawText(buffer,70,240, White );                 //Print the current level
+                        sprintf(buffer, "%d", mGrid.mRemovedLineCount);   
+                        tumDrawText(buffer,70,360, White );                 //Prints the lines
                     xSemaphoreGive(ScreenLock);
 
-                    xGetButtonInput(); // Update global input
 
                     if (checkButton(SDL_SCANCODE_RIGHT)){
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX + 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
@@ -473,19 +417,11 @@ int checkButton(int buttonIndex)
 
                     if ((mTime2 - mTime1) > pdMS_TO_TICKS(mGrid.waitTimeinMS(&mGrid)))
                     {
-                        //Caluclate Shadow Piece
-                        mGame.mShadowPosY = -3;
-                        while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
-                        {
-                            mGame.mShadowPosY++;
-                        }
-                        //Caluclate Shadow Piece
 
-                        
-                        
                         if (mGrid.IsPossibleMovement (&mGrid,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
                         {
                             mGame.mPosY++;
+                            mGame.calculateShadowPiece(&mGame);
                         }
                         else
                         {
@@ -513,6 +449,7 @@ int checkButton(int buttonIndex)
 
                         mTime1 = xTaskGetTickCount();
                     }
+
                     if(isPausePressed())
                     {
                         xSemaphoreGive(GameEngineLock);
@@ -524,9 +461,6 @@ int checkButton(int buttonIndex)
      }
  }
 
-#define SAMPLE_FOLDER "/../resources/waveforms/"
-
-#define GEN_FULL_SAMPLE_PATH(SAMPLE) SAMPLE_FOLDER #SAMPLE ".wav",
 
 #define PRINT_TASK_ERROR(task) PRINT_ERROR("Failed to print task ##task");
 
@@ -590,7 +524,7 @@ int main(int argc, char *argv[])
         goto err_state_queue;
     }
 
-    if (xTaskCreate(basicSequentialStateMachine, "StateMachine",
+    if (xTaskCreate(vStateMachine, "StateMachine",
                     mainGENERIC_STACK_SIZE * 2, NULL,
                     configMAX_PRIORITIES - 1, StateMachine) != pdPASS) {
         PRINT_TASK_ERROR("StateMachine");
@@ -650,8 +584,6 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 
-err_musictask:
-    vSemaphoreDelete(GameEngineLock);
 err_engine_lock:
     vTaskDelete(PauseTask);
 err_pausetask:

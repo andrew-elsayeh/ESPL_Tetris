@@ -1,5 +1,5 @@
+
 #include "menu.h"
-/* Fucntions for managening user input from menus*/
 
 enum MainMenuButton {NONE, START, LEVEL_LEFT, LEVEL_RIGHT, MODE_RIGHT, MODE_LEFT};
 
@@ -19,7 +19,9 @@ extern SemaphoreHandle_t GameEngineLock;
 
 extern Tetris_t mGame; 
 
-
+// =============================================================================
+// Simple functions that return true if a specific button is pressed
+// =============================================================================
 bool isPausePressed()
 {
     int x = tumEventGetMouseX();
@@ -175,6 +177,7 @@ void vMainMenuTask()
     enum gameMode Mode;
     char startingLevel_str[12];
     char highScore_str[12];
+    int width;
 
     TickType_t last_change = 0;
     while(1)
@@ -191,7 +194,9 @@ void vMainMenuTask()
                 {
                     tumDrawLoadedImage(mainmenu_background, 0,0);
                     tumDrawText(startingLevel_str, 365, 340, White);
-                    tumDrawText(highScore_str, 308, 72, White);
+                    tumGetTextSize(highScore_str, &width, NULL);
+                    tumDrawText(highScore_str, SCREEN_WIDTH/2- width/2, 72, White);
+
                     xSemaphoreGive(ScreenLock);
                 }
 		        tumEventFetchEvents(FETCH_EVENT_BLOCK | FETCH_EVENT_NO_GL_CHECK);

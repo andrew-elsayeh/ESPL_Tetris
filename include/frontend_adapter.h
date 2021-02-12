@@ -1,3 +1,13 @@
+/******************************************************************************
+* File Name: frontend_adapter.h
+*
+*
+* Description: This "Object" is the interface between the game engine and TUMDraw
+* It's used to detach the game logic from drawing, so that the code can be modified 
+* to use a different library. For example to run the program on a real development
+* board instead of the emulator
+* 
+*******************************************************************************/
 #pragma once
 
 #include "TUM_Draw.h"

@@ -1,3 +1,13 @@
+/******************************************************************************
+* File Name: grid.h
+*
+*
+* Description: The grid is responsible for a big part of the game logic. The
+* grid object holds the grid and has many functions for easy manipulation of 
+* the grid. (for example abstrating deleting an entire line, or collision detection)
+* 
+*******************************************************************************/
+
 #pragma once
 
 #include "tetrimino.h"

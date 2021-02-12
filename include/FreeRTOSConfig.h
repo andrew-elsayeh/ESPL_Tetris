@@ -88,7 +88,7 @@
 #define configUSE_APPLICATION_TASK_TAG  1
 #define configQUEUE_REGISTRY_SIZE       0
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY    1
-#define configSUPPORT_STATIC_ALLOCATION 1
+#define configSUPPORT_STATIC_ALLOCATION 0
 #define configUSE_TIMERS 1
 #define configTIMER_TASK_PRIORITY               4
 #define configTIMER_QUEUE_LENGTH                5
