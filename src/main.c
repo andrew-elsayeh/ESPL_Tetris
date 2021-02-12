@@ -443,49 +443,37 @@ int checkButton(int buttonIndex)
 
                     if (checkButton(SDL_SCANCODE_RIGHT)){
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX + 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
+                        {
                             mGame.mPosX++;
-                            //Caluclate Shadow Piece
-                            mGame.mShadowPosY = -3;
-                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
-                            {
-                                mGame.mShadowPosY++;
-                            }
-                            //Caluclate Shadow Piece
+                            mGame.calculateShadowPiece(&mGame);
+                        }
+
                     }
                     if (checkButton(SDL_SCANCODE_LEFT)){
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX - 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
+                        {
                             mGame.mPosX--;	
-                            //Caluclate Shadow Piece
-                            mGame.mShadowPosY = -3;
-                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
-                            {
-                                mGame.mShadowPosY++;
-                            }
-                            //Caluclate Shadow Piece
+                            mGame.calculateShadowPiece(&mGame);
+                        }
+
                     }
                     if (checkButton(SDL_SCANCODE_DOWN)){    //Soft Drop
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
-                            mGame.mPosY++;	      
-                            //Caluclate Shadow Piece
-                            mGame.mShadowPosY = -3;
-                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
-                            {
-                                mGame.mShadowPosY++;
-                            }
-                            //Caluclate Shadow Piece
+                        {
+                        mGame.mPosY++;	      
+                        mGame.calculateShadowPiece(&mGame);
+                        }
+
                     }
                     if (checkButton(SDL_SCANCODE_SPACE)){   //Rotation
                         if (mGrid.IsPossibleMovement(
                                 &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
                                 (mGame.mRotation + 1) % 4))
-                            mGame.mRotation = (mGame.mRotation + 1) % 4;
-                            //Caluclate Shadow Piece
-                            mGame.mShadowPosY = -3;
-                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
                             {
-                                mGame.mShadowPosY++;
+                            mGame.mRotation = (mGame.mRotation + 1) % 4;
+                            mGame.calculateShadowPiece(&mGame);
                             }
-                            //Caluclate Shadow Piece
+
                     }
                     if (checkButton(SDL_SCANCODE_UP)){      //Hard drop
                         mGame.HardDrop(&mGame);
