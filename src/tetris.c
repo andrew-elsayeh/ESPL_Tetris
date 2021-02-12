@@ -1,5 +1,7 @@
 #include "tetris.h"
 
+extern SemaphoreHandle_t GameEngineLock;
+extern QueueHandle_t    StateQueue;
 
 /*                                   
 Returns a random number between 2 integers
@@ -31,6 +33,15 @@ void InitGame(Tetris_t *tetris, int startingLevel)
     tetris->mNextRotation   = GetRand (0, 3);
     tetris->mNextPosX       = GRID_WIDTH + 3;
     tetris->mNextPosY       = 9;    
+
+    tetris->mShadowPosY     = -3;
+
+    //Caluclate Shadow Piece
+    while (tetris->mGrid->IsPossibleMovement(tetris->mGrid, tetris->mPosX, tetris->mShadowPosY, tetris->mTetrimino, tetris->mRotation))
+    {
+        tetris->mShadowPosY++;
+    }
+
 }
 
 /**
@@ -44,7 +55,15 @@ void CreateNewPiece(Tetris_t *tetris)
 
     tetris->mPosX           = 2;
     tetris->mPosY           = -3;
- 
+
+    tetris->mShadowPosY     = -3;
+
+    //Caluclate Shadow Piece
+    while (tetris->mGrid->IsPossibleMovement(tetris->mGrid, tetris->mPosX, tetris->mShadowPosY, tetris->mTetrimino, tetris->mRotation))
+    {
+        tetris->mShadowPosY++;
+    }
+
     // Random next tetrimino
     tetris->mNextTetrimino      = GetRand (0, 6);
     tetris->mNextRotation   = GetRand (0, 3);
@@ -82,6 +101,46 @@ void DrawPiece (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation)
              
             if (tetris->pmTetriminos->prvGetBlock (pPiece, pRotation, j, i) != 0)
                 tetris->mFrontendAdapter->DrawRectangle   (mPixelsX + i * BLOCK_SIZE, 
+                                    mPixelsY + j * BLOCK_SIZE, 
+                                    (mPixelsX + i * BLOCK_SIZE) + BLOCK_SIZE - 1, 
+                                    (mPixelsY + j * BLOCK_SIZE) + BLOCK_SIZE - 1, 
+                                    mColor);
+        }
+    }
+}
+
+/**
+ *Draws a single tetrimino
+ */
+void DrawShadowPiece (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation)
+{
+    int mColor;               // Color of the block 
+ 
+    // Obtain the position in pixel in the screen of the block we want to draw
+    int mPixelsX = tetris->mGrid->GetXPosInPixels (tetris->mGrid, pX);
+    int mPixelsY = tetris->mGrid->GetYPosInPixels (tetris->mGrid, pY);
+ 
+    // Travel the matrix of blocks of the tetrimino and draw the blocks that are filled
+    for (int i = 0; i < TETRIMINO_SIDE; i++)
+    {
+        for (int j = 0; j < TETRIMINO_SIDE; j++)
+        {
+            // Get the type of the block and draw it with the correct color
+            switch (tetris->pmTetriminos->prvGetBlock (pPiece, pRotation, j, i))
+            {
+                //Official Tetris Colors according to 
+                //https://tetris.fandom.com/wiki/Tetris_Guideline
+                case 1: mColor = Yellow; break;  
+                case 2: mColor = Cyan; break;   
+                case 3: mColor = Orange; break;
+                case 4: mColor = TetrisBlue; break;
+                case 5: mColor = Red; break;
+                case 6: mColor = Green; break;
+                case 7: mColor = Purple; break;
+            }
+             
+            if (tetris->pmTetriminos->prvGetBlock (pPiece, pRotation, j, i) != 0)
+                tetris->mFrontendAdapter->DrawShadowRectangle   (mPixelsX + i * BLOCK_SIZE, 
                                     mPixelsY + j * BLOCK_SIZE, 
                                     (mPixelsX + i * BLOCK_SIZE) + BLOCK_SIZE - 1, 
                                     (mPixelsY + j * BLOCK_SIZE) + BLOCK_SIZE - 1, 
@@ -143,8 +202,48 @@ void DrawScene (Tetris_t *tetris)
 {
     DrawBoard (tetris);                                                                                         // Draw the blocks stored in the grid
     DrawPiece (tetris, tetris->mPosX, tetris->mPosY, tetris->mTetrimino, tetris->mRotation);                    // Draw the playing tetrimino
+    DrawShadowPiece (tetris, tetris->mPosX, tetris->mShadowPosY, tetris->mTetrimino, tetris->mRotation);        // Draw Shadow Piece
     DrawPiece (tetris, tetris->mNextPosX, tetris->mNextPosY, tetris->mNextTetrimino, tetris->mNextRotation);    // Draw the next tetrimino
 }
+
+
+void HardDrop (Tetris_t *tetris)
+{
+    while (tetris->mGrid->IsPossibleMovement(
+        tetris->mGrid,
+        tetris->mPosX, tetris->mPosY, tetris->mTetrimino,
+        tetris->mRotation)) {
+        tetris->mPosY++;
+    }
+
+    tetris->mGrid->MergeTetrimino(tetris->mGrid ,tetris->mPosX, tetris->mPosY - 1,
+            tetris->mTetrimino, tetris->mRotation);
+
+    tetris->mGrid->RemoveFullLines(tetris->mGrid);
+
+    tetris->mGrid->updateLevel(tetris->mGrid);
+
+
+    if (tetris->mGrid->IsGameOver(tetris->mGrid)) {
+        return;
+    }
+
+    tetris->CreateNewPiece(tetris);
+}
+
+ void SoftDrop (Tetris_t *tetris)
+ {
+     //
+ }
+
+ void calculateShadowPiece(Tetris_t *tetris)
+ {
+    tetris->mShadowPosY = -3;   //reset position
+    while (tetris->mGrid->IsPossibleMovement(tetris->mGrid, tetris->mPosX, tetris->mShadowPosY, tetris->mTetrimino, tetris->mRotation))
+    {
+        tetris->mShadowPosY++;
+    }
+ }
 
 
 
@@ -163,5 +262,9 @@ void tetris_init(Tetris_t *tetris, Grid_t *pGrid, Tetrimino_t *pTetriminos, Fron
     tetris->DrawPiece = DrawPiece;
     tetris->DrawBoard = DrawBoard;
     tetris->DrawScene = DrawScene;
+    tetris->HardDrop = HardDrop;
+    tetris->SoftDrop = SoftDrop;
+    tetris->DrawShadowPiece = DrawShadowPiece;
+    tetris->calculateShadowPiece = calculateShadowPiece;
 
 }

@@ -79,7 +79,7 @@ struct Grid
     int          mGrid [GRID_WIDTH][GRID_HEIGHT];       // Grid that contains the pieces
     int          mRemovedLineCount, mScore, mLevel;     //Used to monitor game progress
     int          mHighScore;
-    int          mStartngLines;                         //Number of lines before at first level up
+    int          mStartngLines;                         //Number of lines before at first level up 
     bool         startLevelingUp;                       //Used for managing leveling up
     Tetrimino_t *pmTetriminos;
 };

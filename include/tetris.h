@@ -2,6 +2,12 @@
 
 #include<stdlib.h>
 
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
 #include "tetrimino.h"
 #include "grid.h"
 #include "frontend_adapter.h"
@@ -34,8 +40,12 @@ struct Tetris
  
     int (*GetRand) (int pA, int pB);
     void (*InitGame) (Tetris_t *tetris, int startingLevel);
+    void (*DrawShadowPiece) (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation);
     void (*DrawPiece) (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation);
     void (*DrawBoard) (Tetris_t *tetris);
+    void (*HardDrop) (Tetris_t *tetris);
+    void (*SoftDrop) (Tetris_t *tetris);
+    void (*calculateShadowPiece) (Tetris_t *tetris);
 };
 
 /**

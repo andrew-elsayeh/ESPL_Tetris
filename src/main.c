@@ -444,53 +444,75 @@ int checkButton(int buttonIndex)
                     if (checkButton(SDL_SCANCODE_RIGHT)){
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX + 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
                             mGame.mPosX++;
+                            //Caluclate Shadow Piece
+                            mGame.mShadowPosY = -3;
+                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
+                            {
+                                mGame.mShadowPosY++;
+                            }
+                            //Caluclate Shadow Piece
                     }
                     if (checkButton(SDL_SCANCODE_LEFT)){
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX - 1, mGame.mPosY, mGame.mTetrimino, mGame.mRotation))
                             mGame.mPosX--;	
+                            //Caluclate Shadow Piece
+                            mGame.mShadowPosY = -3;
+                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
+                            {
+                                mGame.mShadowPosY++;
+                            }
+                            //Caluclate Shadow Piece
                     }
                     if (checkButton(SDL_SCANCODE_DOWN)){    //Soft Drop
                         if (mGrid.IsPossibleMovement (&mGrid ,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
-                            mGame.mPosY++;	                
+                            mGame.mPosY++;	      
+                            //Caluclate Shadow Piece
+                            mGame.mShadowPosY = -3;
+                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
+                            {
+                                mGame.mShadowPosY++;
+                            }
+                            //Caluclate Shadow Piece
                     }
                     if (checkButton(SDL_SCANCODE_SPACE)){   //Rotation
                         if (mGrid.IsPossibleMovement(
                                 &mGrid ,mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
                                 (mGame.mRotation + 1) % 4))
                             mGame.mRotation = (mGame.mRotation + 1) % 4;
+                            //Caluclate Shadow Piece
+                            mGame.mShadowPosY = -3;
+                            while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
+                            {
+                                mGame.mShadowPosY++;
+                            }
+                            //Caluclate Shadow Piece
                     }
                     if (checkButton(SDL_SCANCODE_UP)){      //Hard drop
-                        while (mGrid.IsPossibleMovement(
-                            &mGrid,
-                            mGame.mPosX, mGame.mPosY, mGame.mTetrimino,
-                            mGame.mRotation)) {
-                            mGame.mPosY++;
-                        }
-
-                        mGrid.MergeTetrimino(&mGrid ,mGame.mPosX, mGame.mPosY - 1,
-                                mGame.mTetrimino, mGame.mRotation);
-
-                        mGrid.RemoveFullLines(&mGrid);
-
-                        mGrid.updateLevel(&mGrid);
-
-
+                        mGame.HardDrop(&mGame);
                         if (mGrid.IsGameOver(&mGrid)) {
-                            if(mGrid.mScore > mGrid.mHighScore) //Update High Score
+                            if(mGrid.mScore > mGrid.mHighScore) 
                             {
                                 mGrid.mHighScore = mGrid.mScore;
                             }
                             xSemaphoreGive(GameEngineLock);
                             xQueueSend(StateQueue, &prev_state_signal, 0);
                         }
-
-                        mGame.CreateNewPiece(&mGame);
                     }
                     
                     TickType_t mTime2 = xTaskGetTickCount();
 
                     if ((mTime2 - mTime1) > pdMS_TO_TICKS(mGrid.waitTimeinMS(&mGrid)))
                     {
+                        //Caluclate Shadow Piece
+                        mGame.mShadowPosY = -3;
+                        while (mGrid.IsPossibleMovement(&mGrid, mGame.mPosX, mGame.mShadowPosY, mGame.mTetrimino, mGame.mRotation))
+                        {
+                            mGame.mShadowPosY++;
+                        }
+                        //Caluclate Shadow Piece
+
+                        
+                        
                         if (mGrid.IsPossibleMovement (&mGrid,mGame.mPosX, mGame.mPosY + 1, mGame.mTetrimino, mGame.mRotation))
                         {
                             mGame.mPosY++;
