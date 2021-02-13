@@ -17,14 +17,16 @@
 
 QueueHandle_t PieceQueue = NULL;
 
-TaskHandle_t UDPControlTask = NULL;
 SemaphoreHandle_t HandleUDP = NULL;
-
 
 aIO_handle_t udp_soc_receive = NULL, udp_soc_transmit = NULL;
 
 
 
+/*
+ * When something is recieved over UDP, this ISR is called. It only reacts to Next because 
+ * The game doesn't need to react on the others. 
+ */
 void UDPHandler(size_t read_size, char *buffer, void *args)
 {
     BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
@@ -32,35 +34,88 @@ void UDPHandler(size_t read_size, char *buffer, void *args)
     BaseType_t xHigherPriorityTaskWoken3 = pdFALSE;
 
 
-    int buffer2;
+    int PieceReceived;
 
-    if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) ==
-        pdTRUE) {
-        if (strncmp(buffer, "NEXT=", 
-                    (read_size < 5) ? read_size : 5) == 0) {
-            if(read_size > 5) {
-                switch (buffer[5]) {
-                    case 'O': buffer2 = 0; break;
-                    case 'I': buffer2 = 1; break;
-                    case 'L': buffer2 = 2; break;
-                    case 'J': buffer2 = 3; break;
-                    case 'Z': buffer2 = 4; break;
-                    case 'S': buffer2 = 5; break;
-                    case 'T': buffer2 = 6; break;
-                }
-
-                xQueueSendFromISR(PieceQueue, &buffer2, &xHigherPriorityTaskWoken2);
-            }
+    if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) == pdTRUE) 
+    {
+        
+        if      (strncmp(buffer, "NEXT=O",
+         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 0;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
         }
-
+        else if (strncmp(buffer, "NEXT=I",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 1;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        else if (strncmp(buffer, "NEXT=L",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 2;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        else if (strncmp(buffer, "NEXT=J",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 3;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        else if (strncmp(buffer, "NEXT=Z",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 4;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        else if (strncmp(buffer, "NEXT=S",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 5;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        else if (strncmp(buffer, "NEXT=T",
+                         (read_size < 6) ? read_size : 6) == 0) {
+            PieceReceived = 6;
+            xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
+        }
+        
 
         xSemaphoreGiveFromISR(HandleUDP, &xHigherPriorityTaskWoken3);
 
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 |
-                           xHigherPriorityTaskWoken2 |
-                           xHigherPriorityTaskWoken3);
+                            xHigherPriorityTaskWoken2 |
+                            xHigherPriorityTaskWoken3);
     }
 }
+
+void resetMultiplayer()
+{
+    char buf[10];
+    sprintf(buf, "RESET");
+    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
+void endMultiplayer()
+{
+    aIOCloseConn(udp_soc_receive);
+}
+
+
+void startMultiplayer()
+{
+    char *addr = NULL; // Loopback
+    in_port_t port = UDP_RECEIVE_PORT;
+
+    udp_soc_receive = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
+
+    HandleUDP = xSemaphoreCreateMutex();
+    PieceQueue = xQueueCreate(10, sizeof(int));
+
+    printf("UDP socket opened on port %d\n", port);
+}
+
+void requestShape(){
+    char buf[10];
+    sprintf(buf, "NEXT");
+    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
 
 
 void setMode(int Algorithm)
@@ -91,23 +146,15 @@ void setMode(int Algorithm)
     aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
 }
 
-void requestShape(){
-    char buf[10];
-    sprintf(buf, "NEXT");
-    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
-}
-
-void startMultiplayer()
+/**
+ * Requests a piece from the binary, waits for an answer and returns it
+ */
+int getPiecefromUDB()
 {
-    char *addr = NULL; // Loopback
-    in_port_t port = UDP_RECEIVE_PORT;
-
-    udp_soc_receive = aIOOpenUDPSocket(addr, port, UDP_BUFFER_SIZE, UDPHandler, NULL);
-
-    HandleUDP = xSemaphoreCreateMutex();
-
-
-    PieceQueue = xQueueCreate(10, sizeof(int));
-
-    printf("UDP socket opened on port %d\n", port);
+    int pieceNum;
+    requestShape();
+    xQueueReceive(PieceQueue, &pieceNum, portMAX_DELAY);
+    return pieceNum;
 }
+
+

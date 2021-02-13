@@ -1,3 +1,4 @@
 void startMultiplayer();
 void setMode(int Algorithm);
-void requestShape();
+int getPiecefromUDB();
+void resetMultiplayer();

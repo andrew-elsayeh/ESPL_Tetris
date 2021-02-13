@@ -41,6 +41,7 @@ struct Tetris
     int mNextPosX, mNextPosY;       // Position of the next tetrimino
     int mNextTetrimino, mNextRotation;  // Kind and rotation of the next tetrimino
 
+    bool mMultiplayer; //Flag for storing whether the game in multiplayer mode or not
  
     Grid_t  *mGrid;
     Tetrimino_t *pmTetriminos;
@@ -52,7 +53,6 @@ struct Tetris
     void (*DrawPiece) (Tetris_t *tetris, int pX, int pY, int pPiece, int pRotation);
     void (*DrawBoard) (Tetris_t *tetris);
     void (*HardDrop) (Tetris_t *tetris);
-    void (*SoftDrop) (Tetris_t *tetris);
     void (*calculateShadowPiece) (Tetris_t *tetris);
 };
 

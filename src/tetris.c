@@ -27,14 +27,6 @@ int GetRandRotation (int pA, int pB)
 }
 
 
-int getPiecefromUDB(int p1, int p2)
-{
-    int pieceNum;
-    requestShape();
-    xQueueReceive(PieceQueue, &pieceNum, portMAX_DELAY);
-    return pieceNum;
-}
-
 /**
  * Starts a new game
  */
@@ -42,23 +34,33 @@ void InitGame(Tetris_t *tetris, int startingLevel, bool Multiplayer, int Algorit
 {
     if(Multiplayer)
     {
+        tetris->mMultiplayer = true;
         startMultiplayer();
+        resetMultiplayer();
         setMode(Algorithm);
-        tetris->GetRand = getPiecefromUDB;
     }
     srand ((unsigned int) time(NULL));
 
     tetris->mGrid->mScore = 0;
     tetris->mGrid->mLevel = startingLevel;
+    
+    if(tetris->mMultiplayer)
+    {
+        tetris->mTetrimino = getPiecefromUDB();
+        tetris->mNextTetrimino = getPiecefromUDB();
+    }
+    else
+    {
+    tetris->mTetrimino        = GetRand (0, 6);
+    tetris->mNextTetrimino      = GetRand (0, 6);
+    }
  
     // First tetrimino
-    tetris->mTetrimino        = GetRand (0, 6);
     tetris->mRotation       = GetRandRotation (0, 3);
     tetris->mPosX           = 2;
     tetris->mPosY           = -3;
 
     //  Next tetrimino
-    tetris->mNextTetrimino      = GetRand (0, 6);
     tetris->mNextRotation   = GetRandRotation (0, 3);
     tetris->mNextPosX       = GRID_WIDTH + 3;
     tetris->mNextPosY       = 9;    
@@ -93,8 +95,15 @@ void CreateNewPiece(Tetris_t *tetris)
         tetris->mShadowPosY++;
     }
 
-    // Random next tetrimino
+    //Next tetrimino
+    if(tetris->mMultiplayer)
+    {
+        tetris->mNextTetrimino = getPiecefromUDB();
+    }
+    else
+    {
     tetris->mNextTetrimino      = GetRand (0, 6);
+    }
     tetris->mNextRotation   = GetRandRotation (0, 3);
 }
 
@@ -260,10 +269,7 @@ void HardDrop (Tetris_t *tetris)
     tetris->CreateNewPiece(tetris);
 }
 
- void SoftDrop (Tetris_t *tetris)
- {
-     //
- }
+
 
  void calculateShadowPiece(Tetris_t *tetris)
  {
@@ -292,7 +298,6 @@ void tetris_init(Tetris_t *tetris, Grid_t *pGrid, Tetrimino_t *pTetriminos, Fron
     tetris->DrawBoard = DrawBoard;
     tetris->DrawScene = DrawScene;
     tetris->HardDrop = HardDrop;
-    tetris->SoftDrop = SoftDrop;
     tetris->DrawShadowPiece = DrawShadowPiece;
     tetris->calculateShadowPiece = calculateShadowPiece;
 
