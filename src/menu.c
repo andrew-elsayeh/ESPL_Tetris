@@ -274,7 +274,6 @@ void vMainMenuTask()
                     xSemaphoreGive(ScreenLock);
                 }
 		        tumEventFetchEvents(FETCH_EVENT_BLOCK | FETCH_EVENT_NO_GL_CHECK);
-                //xGetButtonInput(); // Update global input
 
                 switch (buttonPress(&last_change))
                 {
@@ -337,6 +336,13 @@ void vPauseTask()
 
             if(isNewGamePressed())
             {
+                if(xSemaphoreTake(GameEngineLock, portMAX_DELAY) == pdTRUE){
+                    if (mGame.mMultiplayer)
+                    {
+                        endMultiplayer();
+                    }
+                    xSemaphoreGive(GameEngineLock);
+                }
                 xQueueSend(StateQueue, &next_state_signal, 0);  //Go to main menu
             }
         }

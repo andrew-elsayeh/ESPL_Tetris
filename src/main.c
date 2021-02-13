@@ -47,6 +47,7 @@
 #include "tetris.h"
 #include "frontend_adapter.h"
 #include "menu.h"
+#include "multiplayer.h"
 
 // =============================================================================
 // Tasks Handles
@@ -414,6 +415,10 @@ int checkButton(int buttonIndex)
                     if (checkButton(SDL_SCANCODE_UP)){      //Hard drop
                         mGame.HardDrop(&mGame);
                         if (mGrid.IsGameOver(&mGrid)) {
+                            if(mGame.mMultiplayer)
+                            {
+                                endMultiplayer();
+                            }
                             if(mGrid.mScore > mGrid.mHighScore) 
                             {
                                 mGrid.mHighScore = mGrid.mScore;
@@ -444,6 +449,10 @@ int checkButton(int buttonIndex)
 
                             if (mGrid.IsGameOver(&mGrid))
                             {
+                                if(mGame.mMultiplayer)
+                                {
+                                    endMultiplayer();
+                                }
                                 if(mGrid.mScore > mGrid.mHighScore) //Update High Score
                                 {
                                     mGrid.mHighScore = mGrid.mScore;

@@ -20,7 +20,7 @@
 #include <stdbool.h>
 
 #include "tetris.h"
-
+#include "multiplayer.h"
 
 /*
  * Returns true if the pause button is pressed 
