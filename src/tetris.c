@@ -36,8 +36,12 @@ void InitGame(Tetris_t *tetris, int startingLevel, bool Multiplayer, int Algorit
     {
         tetris->mMultiplayer = true;
         startMultiplayer();
+        assertBinaryRunning();
         resetMultiplayer();
         setMode(Algorithm);
+    }
+    else{
+        tetris->mMultiplayer = false;
     }
     srand ((unsigned int) time(NULL));
 

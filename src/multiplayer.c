@@ -16,6 +16,8 @@
 
 
 QueueHandle_t PieceQueue = NULL;
+QueueHandle_t ModeQueue = NULL;
+
 
 SemaphoreHandle_t HandleUDP = NULL;
 
@@ -35,6 +37,7 @@ void UDPHandler(size_t read_size, char *buffer, void *args)
 
 
     int PieceReceived;
+    int GotMode;
 
     if (xSemaphoreTakeFromISR(HandleUDP, &xHigherPriorityTaskWoken1) == pdTRUE) 
     {
@@ -74,6 +77,11 @@ void UDPHandler(size_t read_size, char *buffer, void *args)
             PieceReceived = 6;
             xQueueSendFromISR(PieceQueue, &PieceReceived, &xHigherPriorityTaskWoken2);
         }
+        else if (strncmp(buffer, "MODE=",
+                         (read_size < 5) ? read_size : 5) == 0) {
+            GotMode = 1;
+            xQueueSendFromISR(ModeQueue, &GotMode, &xHigherPriorityTaskWoken2);
+        }
         
 
         xSemaphoreGiveFromISR(HandleUDP, &xHigherPriorityTaskWoken3);
@@ -106,6 +114,7 @@ void startMultiplayer()
 
     HandleUDP = xSemaphoreCreateMutex();
     PieceQueue = xQueueCreate(10, sizeof(int));
+    ModeQueue = xQueueCreate(1, sizeof(int));
 
     printf("UDP socket opened on port %d\n", port);
 }
@@ -144,6 +153,22 @@ void setMode(int Algorithm)
     char buf[20];
     sprintf(buf, "MODE=%s", mode);
     aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
+void requestMode(){
+    char buf[10];
+    sprintf(buf, "MODE");
+    aIOSocketPut(UDP, NULL, UDP_TRANSMIT_PORT, buf, strlen(buf));
+}
+
+void assertBinaryRunning(){
+    requestMode();
+    int mode;
+    if(xQueueReceive(ModeQueue, &mode, 1000) == pdFALSE)
+    {
+        printf("Please run the Tetris Generator Binary for the Multiplayer Mode to work!\n");
+        exit(EXIT_SUCCESS);
+    }
 }
 
 /**
